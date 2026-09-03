@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markdown Editor</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="unsupported-banner" class="hidden">
+  <p>This app requires the File System Access API, which is only available in Chrome, Edge, or another Chromium-based browser. Please open this page in one of those browsers.</p>
+</div>
+
+<header id="app-header">
+  <span id="app-title">Markdown Editor</span>
+  <div id="header-actions">
+    <button id="btn-open-file" title="Open a markdown file">Open File</button>
+    <button id="btn-open-folder" title="Open a folder">Open Folder</button>
+    <button id="btn-reconnect" class="hidden" title="Reconnect to your last folder">Reconnect to Folder</button>
+    <span class="spacer"></span>
+    <button id="btn-toggle-split" title="Toggle split preview" disabled aria-pressed="false">Split View</button>
+    <button id="btn-toggle-theme" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
+    <button id="btn-save" title="Save (Ctrl/Cmd+S)" disabled>Save</button>
+    <button id="btn-toggle-mode" title="Toggle edit mode (Ctrl/Cmd+E)" disabled>Edit</button>
+  </div>
+</header>
+
+<div id="app-body">
+  <button id="btn-sidebar-toggle" class="hidden" title="Toggle sidebar" aria-label="Toggle sidebar">☰</button>
+  <nav id="sidebar">
+    <section id="files-panel" class="sidebar-section">
+      <div class="section-header-row">
+        <button class="section-header" data-target="file-tree">
+          <span class="chevron">▾</span> Files
+        </button>
+        <button id="btn-refresh-tree" class="icon-btn hidden" title="Refresh folder">↻</button>
+      </div>
+      <div id="file-tree" class="section-body" role="tree" aria-label="Folder contents">
+        <p class="empty-hint">No folder open.</p>
+      </div>
+    </section>
+    <section id="outline-panel" class="sidebar-section">
+      <div class="section-header-row">
+        <button class="section-header" data-target="toc-container">
+          <span class="chevron">▾</span> Outline
+        </button>
+      </div>
+      <div id="toc-container" class="section-body">
+        <p class="empty-hint">No document open.</p>
+      </div>
+    </section>
+  </nav>
+
+  <main id="content-area" class="mode-view">
+    <div id="format-toolbar" class="hidden"></div>
+    <div class="panes">
+      <div id="editor-pane">
+        <textarea id="editor" spellcheck="false" placeholder="Open a markdown file to begin..."></textarea>
+      </div>
+      <div id="preview-pane">
+        <div id="preview-content"><p class="empty-hint">Open a markdown file to see it rendered here.</p></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="search-overlay" class="hidden" role="dialog" aria-modal="true" aria-label="Find and replace">
+  <div class="search-row">
+    <input id="search-find" type="text" placeholder="Find" aria-label="Find">
+    <span id="search-match-label">0/0</span>
+    <button id="search-prev" class="icon-btn" title="Previous match (Shift+Enter)" aria-label="Previous match">▲</button>
+    <button id="search-next" class="icon-btn" title="Next match (Enter)" aria-label="Next match">▼</button>
+    <button id="search-close" class="icon-btn" title="Close (Esc)" aria-label="Close find and replace">✕</button>
+  </div>
+  <div class="search-row">
+    <input id="search-replace" type="text" placeholder="Replace" aria-label="Replace">
+    <button id="search-replace-one">Replace</button>
+    <button id="search-replace-all">Replace All</button>
+  </div>
+</div>
+
+<div id="toast-container" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"
+        integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"
+        integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a"
+        crossorigin="anonymous"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
