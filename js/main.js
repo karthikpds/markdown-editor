@@ -3,6 +3,7 @@ import {
   queryDirPermission, requestDirPermission, saveFile,
   saveDirectoryHandle, loadDirectoryHandle,
   addRecentFolder, getRecentFolders, removeRecentFolder,
+  fileExistsInDir, createFileInDir,
 } from './fileSystem.js';
 import { renderMarkdown, extractHeadings } from './markdown.js';
 import { initEditor } from './editor.js';
@@ -132,6 +133,72 @@ async function handleOpenFile() {
   }
 }
 
+function defaultDateFileName() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}${mm}${dd}.md`;
+}
+
+function normalizeMdFileName(rawName) {
+  const trimmed = rawName.trim();
+  if (!trimmed) return null;
+  return /\.(md|markdown)$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
+}
+
+function parentPathOf(path) {
+  const idx = path.lastIndexOf('/');
+  return idx === -1 ? '' : path.slice(0, idx);
+}
+
+// Prompts for a filename (defaulting to today's date), checks for a
+// same-name collision with a confirm(), then writes `contents` into
+// `dirHandle`. Returns { handle, name } on success, null if cancelled.
+async function createFileWithPrompt(dirHandle, promptText, contents) {
+  const rawName = window.prompt(promptText, defaultDateFileName());
+  if (rawName === null) return null;
+  const name = normalizeMdFileName(rawName);
+  if (!name) return null;
+  try {
+    if (await fileExistsInDir(dirHandle, name)) {
+      const overwrite = window.confirm(`"${name}" already exists in this folder. Overwrite it?`);
+      if (!overwrite) return null;
+    }
+    const handle = await createFileInDir(dirHandle, name, contents);
+    showToast(`Created "${name}".`);
+    return { handle, name };
+  } catch (err) {
+    showToast(`Could not create "${name}": ${err.message}`, true);
+    return null;
+  }
+}
+
+async function handleCopyFile(sourceHandle, parentDirHandle, sourcePath) {
+  if (!(await confirmDiscardIfDirty())) return null;
+  try {
+    const { text } = await readFile(sourceHandle);
+    const created = await createFileWithPrompt(parentDirHandle, `Copy "${sourceHandle.name}" as:`, text);
+    if (!created) return null;
+    const parentPath = parentPathOf(sourcePath);
+    const path = parentPath ? `${parentPath}/${created.name}` : created.name;
+    setCurrentFile(created.handle, text, { path, isFromTree: true });
+    return { ...created, path };
+  } catch (err) {
+    showToast(`Could not copy file: ${err.message}`, true);
+    return null;
+  }
+}
+
+async function handleCreateFileInFolder(dirHandle, parentPath) {
+  if (!(await confirmDiscardIfDirty())) return null;
+  const created = await createFileWithPrompt(dirHandle, `New file in "${dirHandle.name}":`, '');
+  if (!created) return null;
+  const path = `${parentPath}/${created.name}`;
+  setCurrentFile(created.handle, '', { path, isFromTree: true });
+  return { ...created, path };
+}
+
 async function renderTree() {
   try {
     await renderFileTree(fileTreeEl, state.rootDirHandle, {
@@ -144,6 +211,8 @@ async function renderTree() {
           showToast(`Could not read file: ${err.message}`, true);
         }
       },
+      onCopyFile: handleCopyFile,
+      onCreateFile: handleCreateFileInFolder,
     });
   } catch (err) {
     showToast(`Could not read folder: ${err.message}`, true);

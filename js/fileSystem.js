@@ -84,6 +84,24 @@ export async function saveFile(fileHandle, contents) {
   }
 }
 
+export async function fileExistsInDir(dirHandle, name) {
+  try {
+    await dirHandle.getFileHandle(name);
+    return true;
+  } catch (err) {
+    if (err.name === 'NotFoundError') return false;
+    throw err;
+  }
+}
+
+// Creates (or overwrites) a file named `name` inside `dirHandle` with
+// `contents`, and returns its handle.
+export async function createFileInDir(dirHandle, name, contents) {
+  const fileHandle = await dirHandle.getFileHandle(name, { create: true });
+  await saveFile(fileHandle, contents);
+  return fileHandle;
+}
+
 const SKIP_NAMES = new Set(['node_modules', '.git']);
 
 // Reads exactly one level of a directory (no recursion, to stay fast on huge

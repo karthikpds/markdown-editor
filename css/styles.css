@@ -197,6 +197,30 @@ button[aria-pressed="true"] { background: var(--accent-color); color: #fff; bord
 .tree-folder .chevron { font-size: 0.7rem; }
 .tree-icon { opacity: 0.7; }
 
+.tree-folder-row, .tree-file-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.tree-folder-row .tree-folder,
+.tree-file-row .tree-file {
+  flex: 1;
+  min-width: 0;
+}
+.tree-add-file, .tree-copy-file {
+  flex-shrink: 0;
+  opacity: 0;
+  font-size: 0.75rem;
+  padding: 3px 6px;
+  line-height: 1;
+}
+.tree-folder-row:hover .tree-add-file,
+.tree-add-file:focus-visible,
+.tree-file-row:hover .tree-copy-file,
+.tree-copy-file:focus-visible {
+  opacity: 1;
+}
+
 /* Recent folders */
 .recent-folder-row {
   display: flex;
