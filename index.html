@@ -12,6 +12,7 @@
 </div>
 
 <header id="app-header">
+  <button id="btn-sidebar-collapse" class="icon-btn" title="Hide sidebar" aria-label="Hide sidebar" aria-pressed="false">«</button>
   <span id="app-title">Markdown Editor</span>
   <div id="header-actions">
     <button id="btn-open-file" title="Open a markdown file">Open File</button>
@@ -28,6 +29,16 @@
 <div id="app-body">
   <button id="btn-sidebar-toggle" class="hidden" title="Toggle sidebar" aria-label="Toggle sidebar">☰</button>
   <nav id="sidebar">
+    <section id="recent-folders-panel" class="sidebar-section">
+      <div class="section-header-row">
+        <button class="section-header" data-target="recent-folders-list">
+          <span class="chevron">▾</span> Recent Folders
+        </button>
+      </div>
+      <div id="recent-folders-list" class="section-body">
+        <p class="empty-hint">No recent folders.</p>
+      </div>
+    </section>
     <section id="files-panel" class="sidebar-section">
       <div class="section-header-row">
         <button class="section-header" data-target="file-tree">
@@ -50,6 +61,7 @@
       </div>
     </section>
   </nav>
+  <div id="sidebar-resizer" title="Drag to resize · double-click to reset"></div>
 
   <main id="content-area" class="mode-view">
     <div id="format-toolbar" class="hidden"></div>

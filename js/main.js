@@ -2,6 +2,7 @@ import {
   isFileSystemAccessSupported, pickAndOpenFile, readFile, pickDirectory,
   queryDirPermission, requestDirPermission, saveFile,
   saveDirectoryHandle, loadDirectoryHandle,
+  addRecentFolder, getRecentFolders, removeRecentFolder,
 } from './fileSystem.js';
 import { renderMarkdown, extractHeadings } from './markdown.js';
 import { initEditor } from './editor.js';
@@ -9,7 +10,9 @@ import { buildToolbar } from './toolbar.js';
 import { initSearch } from './search.js';
 import { renderToc, scrollToHeading } from './toc.js';
 import { renderFileTree, clearActiveFile } from './fileTree.js';
+import { renderRecentFolders } from './recentFolders.js';
 import { initTheme } from './theme.js';
+import { initSidebar } from './sidebar.js';
 
 const unsupportedBanner = document.getElementById('unsupported-banner');
 const btnOpenFile = document.getElementById('btn-open-file');
@@ -21,8 +24,12 @@ const btnToggleTheme = document.getElementById('btn-toggle-theme');
 const btnSave = document.getElementById('btn-save');
 const btnToggleMode = document.getElementById('btn-toggle-mode');
 const btnSidebarToggle = document.getElementById('btn-sidebar-toggle');
+const btnSidebarCollapse = document.getElementById('btn-sidebar-collapse');
+const appBodyEl = document.getElementById('app-body');
 const sidebarEl = document.getElementById('sidebar');
+const sidebarResizerEl = document.getElementById('sidebar-resizer');
 const fileTreeEl = document.getElementById('file-tree');
+const recentFoldersEl = document.getElementById('recent-folders-list');
 const tocContainerEl = document.getElementById('toc-container');
 const contentAreaEl = document.getElementById('content-area');
 const formatToolbarEl = document.getElementById('format-toolbar');
@@ -142,16 +149,30 @@ async function renderTree() {
   }
 }
 
+async function refreshRecentFolders() {
+  const records = await getRecentFolders();
+  renderRecentFolders(recentFoldersEl, records, {
+    onOpen: handleOpenRecentFolder,
+    onRemove: handleRemoveRecentFolder,
+  });
+}
+
+async function openRootFolder(dirHandle) {
+  state.rootDirHandle = dirHandle;
+  state.rootDirName = dirHandle.name;
+  btnReconnect.classList.add('hidden');
+  btnRefreshTree.classList.remove('hidden');
+  await renderTree();
+  await saveDirectoryHandle(dirHandle);
+  await addRecentFolder(dirHandle);
+  await refreshRecentFolders();
+}
+
 async function handleOpenFolder() {
   try {
     const dirHandle = await pickDirectory();
     if (!dirHandle) return;
-    state.rootDirHandle = dirHandle;
-    state.rootDirName = dirHandle.name;
-    btnReconnect.classList.add('hidden');
-    btnRefreshTree.classList.remove('hidden');
-    await renderTree();
-    await saveDirectoryHandle(dirHandle);
+    await openRootFolder(dirHandle);
   } catch (err) {
     showToast(`Could not open folder: ${err.message}`, true);
   }
@@ -162,15 +183,32 @@ async function handleReconnect() {
   try {
     const perm = await requestDirPermission(state.rootDirHandle);
     if (perm === 'granted') {
-      btnReconnect.classList.add('hidden');
-      btnRefreshTree.classList.remove('hidden');
-      await renderTree();
+      await openRootFolder(state.rootDirHandle);
     } else {
       showToast('Permission to access the folder was not granted.', true);
     }
   } catch (err) {
     showToast(`Could not reconnect to folder: ${err.message}`, true);
   }
+}
+
+async function handleOpenRecentFolder(record) {
+  try {
+    let perm = await queryDirPermission(record.handle);
+    if (perm !== 'granted') perm = await requestDirPermission(record.handle);
+    if (perm !== 'granted') {
+      showToast('Permission to access the folder was not granted.', true);
+      return;
+    }
+    await openRootFolder(record.handle);
+  } catch (err) {
+    showToast(`Could not open folder: ${err.message}`, true);
+  }
+}
+
+async function handleRemoveRecentFolder(record) {
+  await removeRecentFolder(record.id);
+  await refreshRecentFolders();
 }
 
 async function tryRestorePersistedFolder() {
@@ -183,6 +221,8 @@ async function tryRestorePersistedFolder() {
     if (perm === 'granted') {
       btnRefreshTree.classList.remove('hidden');
       await renderTree();
+      await addRecentFolder(dirHandle);
+      await refreshRecentFolders();
     } else {
       btnReconnect.textContent = `Reconnect to "${dirHandle.name}"`;
       btnReconnect.classList.remove('hidden');
@@ -280,6 +320,12 @@ async function init() {
   }
 
   initTheme(btnToggleTheme);
+  initSidebar({
+    appBodyEl,
+    sidebarEl,
+    resizerEl: sidebarResizerEl,
+    collapseBtn: btnSidebarCollapse,
+  });
   editorApi = initEditor(editorTextarea, { onChange: refreshPreviewAndToc, onDirtyChange });
   buildToolbar(formatToolbarEl, editorTextarea);
   initSearch({
@@ -302,6 +348,7 @@ async function init() {
   setupBeforeUnload();
   updateModeClasses();
 
+  await refreshRecentFolders();
   await tryRestorePersistedFolder();
 }
 

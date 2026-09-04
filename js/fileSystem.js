@@ -1,9 +1,11 @@
 // File System Access API wrapper + IndexedDB persistence of the last-opened folder.
 
 const DB_NAME = 'markdown-editor-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'handles';
 const DIR_KEY = 'lastDirectory';
+const RECENTS_STORE = 'recentFolders';
+const MAX_RECENTS = 10;
 
 export function isFileSystemAccessSupported() {
   return typeof window.showOpenFilePicker === 'function'
@@ -108,7 +110,13 @@ function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
-      req.result.createObjectStore(STORE_NAME);
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+      if (!db.objectStoreNames.contains(RECENTS_STORE)) {
+        db.createObjectStore(RECENTS_STORE, { keyPath: 'id', autoIncrement: true });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -155,5 +163,81 @@ export async function clearDirectoryHandle() {
     });
   } catch (err) {
     console.warn('Could not clear persisted folder handle:', err);
+  }
+}
+
+function getAllRecents(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(RECENTS_STORE, 'readonly');
+    const req = tx.objectStore(RECENTS_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// Adds/updates a recent-folder entry, keyed by handle identity (there's no
+// stable string id for a directory handle, so existing entries are matched
+// via isSameEntry). Keeps only the MAX_RECENTS most recently opened.
+export async function addRecentFolder(dirHandle) {
+  try {
+    const db = await openDb();
+    const existing = await getAllRecents(db);
+
+    let matchId = null;
+    for (const rec of existing) {
+      try {
+        if (await rec.handle.isSameEntry(dirHandle)) {
+          matchId = rec.id;
+          break;
+        }
+      } catch {
+        // Stale/unreadable handle - skip it.
+      }
+    }
+
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(RECENTS_STORE, 'readwrite');
+      const store = tx.objectStore(RECENTS_STORE);
+      const record = { handle: dirHandle, name: dirHandle.name, lastOpened: Date.now() };
+      if (matchId !== null) record.id = matchId;
+      store.put(record);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    const all = await getAllRecents(db);
+    if (all.length > MAX_RECENTS) {
+      const overflow = all.sort((a, b) => b.lastOpened - a.lastOpened).slice(MAX_RECENTS);
+      const tx = db.transaction(RECENTS_STORE, 'readwrite');
+      const store = tx.objectStore(RECENTS_STORE);
+      overflow.forEach((rec) => store.delete(rec.id));
+    }
+  } catch (err) {
+    console.warn('Could not update recent folders:', err);
+  }
+}
+
+export async function getRecentFolders() {
+  try {
+    const db = await openDb();
+    const all = await getAllRecents(db);
+    return all.sort((a, b) => b.lastOpened - a.lastOpened);
+  } catch (err) {
+    console.warn('Could not load recent folders:', err);
+    return [];
+  }
+}
+
+export async function removeRecentFolder(id) {
+  try {
+    const db = await openDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(RECENTS_STORE, 'readwrite');
+      tx.objectStore(RECENTS_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('Could not remove recent folder:', err);
   }
 }

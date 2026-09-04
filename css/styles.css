@@ -121,12 +121,37 @@ button[aria-pressed="true"] { background: var(--accent-color); color: #fff; bord
   box-shadow: var(--shadow);
 }
 
+#btn-sidebar-collapse {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
 #sidebar {
   width: 260px;
+  min-width: 180px;
+  max-width: 560px;
   flex-shrink: 0;
   overflow-y: auto;
   border-right: 1px solid var(--border-color);
   background: var(--bg-secondary);
+}
+
+#sidebar-resizer {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  touch-action: none;
+}
+#sidebar-resizer:hover,
+#sidebar-resizer.dragging {
+  background: var(--accent-color);
+}
+
+/* Collapsed sidebar: hide it and its resizer, let content fill the space. */
+#app-body.sidebar-collapsed #sidebar,
+#app-body.sidebar-collapsed #sidebar-resizer {
+  display: none;
 }
 
 .sidebar-section { border-bottom: 1px solid var(--border-color); }
@@ -171,6 +196,41 @@ button[aria-pressed="true"] { background: var(--accent-color); color: #fff; bord
 .tree-children { padding-left: 14px; }
 .tree-folder .chevron { font-size: 0.7rem; }
 .tree-icon { opacity: 0.7; }
+
+/* Recent folders */
+.recent-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.recent-folder {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recent-folder:hover { background: var(--bg-tertiary); }
+.recent-folder-remove {
+  flex-shrink: 0;
+  opacity: 0;
+  font-size: 0.7rem;
+  padding: 3px 6px;
+}
+.recent-folder-row:hover .recent-folder-remove,
+.recent-folder-remove:focus-visible {
+  opacity: 1;
+}
 
 /* Outline / ToC */
 .toc-item {
@@ -363,16 +423,20 @@ button[aria-pressed="true"] { background: var(--accent-color); color: #fff; bord
 /* Responsive */
 @media (max-width: 768px) {
   #btn-sidebar-toggle { display: flex !important; align-items: center; justify-content: center; }
+  #btn-sidebar-collapse,
+  #sidebar-resizer { display: none !important; }
   #sidebar {
     position: fixed;
     top: 0;
     left: -280px;
     bottom: 0;
     z-index: 40;
+    width: 260px !important;
     box-shadow: var(--shadow);
     transition: left 0.2s ease;
   }
   #sidebar.open { left: 0; }
+  #app-body.sidebar-collapsed #sidebar { display: block; }
   #btn-toggle-split { display: none; }
   .mode-edit-split .panes { flex-direction: column; }
   .mode-edit-split #preview-pane { border-left: none; border-top: 1px solid var(--border-color); }
