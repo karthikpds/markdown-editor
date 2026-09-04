@@ -1,7 +1,7 @@
 // Recent-folders list UI. Records are persisted in fileSystem.js's IndexedDB
 // store; this module only renders them and wires click/remove handlers.
 
-export function renderRecentFolders(containerEl, records, { onOpen, onRemove }) {
+export function renderRecentFolders(containerEl, records, { activeId, onOpen, onRemove }) {
   containerEl.innerHTML = '';
   if (records.length === 0) {
     const p = document.createElement('p');
@@ -16,7 +16,7 @@ export function renderRecentFolders(containerEl, records, { onOpen, onRemove }) 
     row.className = 'recent-folder-row';
 
     const btn = document.createElement('button');
-    btn.className = 'recent-folder';
+    btn.className = `recent-folder${record.id === activeId ? ' active' : ''}`;
     btn.innerHTML = `<span class="tree-icon">📁</span> ${record.name}`;
     btn.title = `${record.name} — last opened ${new Date(record.lastOpened).toLocaleString()}`;
     btn.addEventListener('click', () => onOpen(record));

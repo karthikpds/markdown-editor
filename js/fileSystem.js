@@ -177,7 +177,8 @@ function getAllRecents(db) {
 
 // Adds/updates a recent-folder entry, keyed by handle identity (there's no
 // stable string id for a directory handle, so existing entries are matched
-// via isSameEntry). Keeps only the MAX_RECENTS most recently opened.
+// via isSameEntry). Keeps only the MAX_RECENTS most recently opened. Returns
+// the record's id so the caller can track/highlight it as the active entry.
 export async function addRecentFolder(dirHandle) {
   try {
     const db = await openDb();
@@ -195,13 +196,15 @@ export async function addRecentFolder(dirHandle) {
       }
     }
 
-    await new Promise((resolve, reject) => {
+    const savedId = await new Promise((resolve, reject) => {
       const tx = db.transaction(RECENTS_STORE, 'readwrite');
       const store = tx.objectStore(RECENTS_STORE);
       const record = { handle: dirHandle, name: dirHandle.name, lastOpened: Date.now() };
       if (matchId !== null) record.id = matchId;
-      store.put(record);
-      tx.oncomplete = () => resolve();
+      const req = store.put(record);
+      let id;
+      req.onsuccess = () => { id = req.result; };
+      tx.oncomplete = () => resolve(id);
       tx.onerror = () => reject(tx.error);
     });
 
@@ -212,8 +215,11 @@ export async function addRecentFolder(dirHandle) {
       const store = tx.objectStore(RECENTS_STORE);
       overflow.forEach((rec) => store.delete(rec.id));
     }
+
+    return savedId;
   } catch (err) {
     console.warn('Could not update recent folders:', err);
+    return null;
   }
 }
 

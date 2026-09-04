@@ -48,6 +48,7 @@ const state = {
   mode: 'view', // 'view' | 'edit'
   splitEnabled: false,
   confirmedOverwriteHandles: new Set(),
+  activeRecentFolderId: null,
 };
 
 let editorApi = null;
@@ -152,6 +153,7 @@ async function renderTree() {
 async function refreshRecentFolders() {
   const records = await getRecentFolders();
   renderRecentFolders(recentFoldersEl, records, {
+    activeId: state.activeRecentFolderId,
     onOpen: handleOpenRecentFolder,
     onRemove: handleRemoveRecentFolder,
   });
@@ -164,7 +166,7 @@ async function openRootFolder(dirHandle) {
   btnRefreshTree.classList.remove('hidden');
   await renderTree();
   await saveDirectoryHandle(dirHandle);
-  await addRecentFolder(dirHandle);
+  state.activeRecentFolderId = await addRecentFolder(dirHandle);
   await refreshRecentFolders();
 }
 
@@ -208,6 +210,7 @@ async function handleOpenRecentFolder(record) {
 
 async function handleRemoveRecentFolder(record) {
   await removeRecentFolder(record.id);
+  if (state.activeRecentFolderId === record.id) state.activeRecentFolderId = null;
   await refreshRecentFolders();
 }
 
@@ -221,7 +224,7 @@ async function tryRestorePersistedFolder() {
     if (perm === 'granted') {
       btnRefreshTree.classList.remove('hidden');
       await renderTree();
-      await addRecentFolder(dirHandle);
+      state.activeRecentFolderId = await addRecentFolder(dirHandle);
       await refreshRecentFolders();
     } else {
       btnReconnect.textContent = `Reconnect to "${dirHandle.name}"`;

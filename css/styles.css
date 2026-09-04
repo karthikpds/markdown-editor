@@ -221,6 +221,8 @@ button[aria-pressed="true"] { background: var(--accent-color); color: #fff; bord
   text-overflow: ellipsis;
 }
 .recent-folder:hover { background: var(--bg-tertiary); }
+.recent-folder.active { background: var(--accent-color); color: #fff; }
+.recent-folder.active:hover { background: var(--accent-color-hover); }
 .recent-folder-remove {
   flex-shrink: 0;
   opacity: 0;
