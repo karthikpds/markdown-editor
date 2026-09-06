@@ -1,6 +1,10 @@
 // Markdown rendering + heading extraction, built on the global `marked` and `DOMPurify`
 // loaded via CDN <script> tags in index.html.
 
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function stripInlineMarkdown(text) {
   return text
     .replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -59,6 +63,14 @@ export function renderMarkdown(markdownText) {
   let cursor = 0;
 
   const renderer = new window.marked.Renderer();
+  const defaultCode = renderer.code.bind(renderer);
+  renderer.code = (code, infostring, escaped) => {
+    const lang = (infostring || '').trim().split(/\s+/)[0].toLowerCase();
+    if (lang === 'mermaid') {
+      return `<pre class="mermaid">${escapeHtml(code)}</pre>\n`;
+    }
+    return defaultCode(code, infostring, escaped);
+  };
   renderer.heading = (text, level) => {
     const heading = headings[cursor];
     cursor += 1;

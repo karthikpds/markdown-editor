@@ -14,6 +14,7 @@ import { renderFileTree, clearActiveFile } from './fileTree.js';
 import { renderRecentFolders } from './recentFolders.js';
 import { initTheme } from './theme.js';
 import { initSidebar } from './sidebar.js';
+import { renderMermaidDiagrams } from './mermaid.js';
 
 const unsupportedBanner = document.getElementById('unsupported-banner');
 const btnOpenFile = document.getElementById('btn-open-file');
@@ -88,6 +89,7 @@ function updateModeClasses() {
 
 function refreshPreviewAndToc(text) {
   previewContentEl.innerHTML = renderMarkdown(text);
+  renderMermaidDiagrams(previewContentEl);
   const headings = extractHeadings(text);
   renderToc(tocContainerEl, headings, {
     onHeadingClick: (slug) => {

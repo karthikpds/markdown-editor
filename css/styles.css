@@ -358,6 +358,11 @@ button[aria-pressed="true"] { background: var(--accent-color); color: #fff; bord
   overflow-x: auto;
 }
 #preview-content pre code { background: none; padding: 0; }
+#preview-content pre.mermaid {
+  background: transparent;
+  text-align: center;
+}
+#preview-content pre.mermaid svg { max-width: 100%; height: auto; }
 #preview-content blockquote {
   border-left: 3px solid var(--border-color);
   margin-left: 0;
