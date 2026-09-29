@@ -47,14 +47,37 @@ function makeFolderNode(entry, depth, opts) {
   btn.style.paddingLeft = `${6 + depth * 14}px`;
   btn.innerHTML = `<span class="chevron">▸</span><span class="tree-icon">📁</span> ${entry.name}`;
 
-  const addBtn = document.createElement('button');
-  addBtn.className = 'icon-btn tree-add-file';
-  addBtn.textContent = '+';
-  addBtn.title = `New file in "${entry.name}"`;
-  addBtn.setAttribute('aria-label', `New file in ${entry.name}`);
-
   headerRow.appendChild(btn);
-  headerRow.appendChild(addBtn);
+
+  // No write-back in compatibility mode, so there is nothing to create
+  // a new file into.
+  if (!opts.readOnly) {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'icon-btn tree-add-file';
+    addBtn.textContent = '+';
+    addBtn.title = `New file in "${entry.name}"`;
+    addBtn.setAttribute('aria-label', `New file in ${entry.name}`);
+    addBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const wasLoaded = loaded;
+      const result = await opts.onCreateFile(entry.handle, entry.path);
+      if (!result) return;
+      if (!expanded) setExpanded(true);
+      if (wasLoaded) {
+        const newRow = makeFileNode(
+          { type: 'file', name: result.name, handle: result.handle, path: result.path },
+          depth + 1, opts, childrenEl, entry.handle,
+        );
+        insertFileNode(childrenEl, newRow);
+        markActive(newRow.querySelector('.tree-file'));
+      } else {
+        await ensureLoaded();
+        const newBtn = childrenEl.querySelector(`.tree-file[data-path="${CSS.escape(result.path)}"]`);
+        if (newBtn) markActive(newBtn);
+      }
+    });
+    headerRow.appendChild(addBtn);
+  }
 
   const childrenEl = document.createElement('div');
   childrenEl.className = 'tree-children hidden';
@@ -81,26 +104,6 @@ function makeFolderNode(entry, depth, opts) {
     if (expanded) await ensureLoaded();
   });
 
-  addBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const wasLoaded = loaded;
-    const result = await opts.onCreateFile(entry.handle, entry.path);
-    if (!result) return;
-    if (!expanded) setExpanded(true);
-    if (wasLoaded) {
-      const newRow = makeFileNode(
-        { type: 'file', name: result.name, handle: result.handle, path: result.path },
-        depth + 1, opts, childrenEl, entry.handle,
-      );
-      insertFileNode(childrenEl, newRow);
-      markActive(newRow.querySelector('.tree-file'));
-    } else {
-      await ensureLoaded();
-      const newBtn = childrenEl.querySelector(`.tree-file[data-path="${CSS.escape(result.path)}"]`);
-      if (newBtn) markActive(newBtn);
-    }
-  });
-
   wrapper.appendChild(headerRow);
   wrapper.appendChild(childrenEl);
   return wrapper;
@@ -124,25 +127,29 @@ function makeFileNode(entry, depth, opts, containerEl, parentDirHandle) {
     opts.onFileClick(entry.handle, { path: entry.path, isFromTree: true });
   });
 
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'icon-btn tree-copy-file';
-  copyBtn.textContent = '⧉';
-  copyBtn.title = `Copy "${entry.name}"`;
-  copyBtn.setAttribute('aria-label', `Copy ${entry.name}`);
-  copyBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const result = await opts.onCopyFile(entry.handle, parentDirHandle, entry.path);
-    if (!result) return;
-    const newRow = makeFileNode(
-      { type: 'file', name: result.name, handle: result.handle, path: result.path },
-      depth, opts, containerEl, parentDirHandle,
-    );
-    insertFileNode(containerEl, newRow);
-    markActive(newRow.querySelector('.tree-file'));
-  });
-
   row.appendChild(btn);
-  row.appendChild(copyBtn);
+
+  // No write-back in compatibility mode, so there is nowhere to copy to.
+  if (!opts.readOnly) {
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'icon-btn tree-copy-file';
+    copyBtn.textContent = '⧉';
+    copyBtn.title = `Copy "${entry.name}"`;
+    copyBtn.setAttribute('aria-label', `Copy ${entry.name}`);
+    copyBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const result = await opts.onCopyFile(entry.handle, parentDirHandle, entry.path);
+      if (!result) return;
+      const newRow = makeFileNode(
+        { type: 'file', name: result.name, handle: result.handle, path: result.path },
+        depth, opts, containerEl, parentDirHandle,
+      );
+      insertFileNode(containerEl, newRow);
+      markActive(newRow.querySelector('.tree-file'));
+    });
+    row.appendChild(copyBtn);
+  }
+
   return row;
 }
 

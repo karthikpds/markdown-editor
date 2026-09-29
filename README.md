@@ -6,7 +6,9 @@ A lightweight, client-side markdown viewer/editor that runs entirely in the brow
 
 ## Requirements
 
-This app uses the browser's [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API) to open, browse, and save local files directly. That API is only available in **Chrome, Edge, or another Chromium-based browser** — it is not supported in Firefox or Safari. Opening the page in an unsupported browser shows a message asking you to switch.
+Full save-back-to-disk uses the browser's [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API), which is only available in **Chrome, Edge, or another Chromium-based browser**.
+
+Other browsers (Firefox, Safari) run in **compatibility mode**: you can still open files and folders to view and edit them, but **Save downloads a copy** of the file instead of overwriting the original, and the last-opened folder isn't remembered between visits. For the full experience, open the page in a Chromium browser.
 
 ## Features
 
@@ -33,9 +35,7 @@ Then open `http://localhost:8000` in Chrome or Edge. (Opening `index.html` direc
 
 ## Tech
 
-Two CDN dependencies, no framework and no bundler:
-- [marked](https://marked.js.org/) — markdown parsing
-- [DOMPurify](https://github.com/cure53/DOMPurify) — sanitizes rendered HTML before it's inserted into the page, since markdown files can embed raw HTML
+No framework, no bundler, no build step — and no runtime CDN dependencies. [marked](https://marked.js.org/) (markdown parsing) and [DOMPurify](https://github.com/cure53/DOMPurify) (sanitizing rendered HTML, since markdown files can embed raw HTML) are vendored under `vendor/`, so the app works fully offline. Mermaid (diagram rendering, ~3.5MB) is the only network dependency and loads lazily from a CDN only when a document actually contains a mermaid code block.
 
 ## Security note
 

@@ -1,4 +1,9 @@
 // File System Access API wrapper + IndexedDB persistence of the last-opened folder.
+// In compatibility mode (no File System Access API) the virtual handles from
+// fallbackFs.js are accepted by readFile/saveFile/listDirectoryShallow;
+// saving a virtual file downloads a copy since write-back is impossible.
+
+import { isVirtualFileHandle, isVirtualDirHandle, downloadFile } from './fallbackFs.js';
 
 const DB_NAME = 'markdown-editor-db';
 const DB_VERSION = 2;
@@ -34,8 +39,13 @@ export async function pickAndOpenFile() {
 }
 
 // Reads a file's current contents from an already-open handle (used when a
-// tree click opens a file we haven't read yet).
+// tree click opens a file we haven't read yet). Accepts virtual file handles
+// from compatibility mode, which wrap a plain File object.
 export async function readFile(handle) {
+  if (isVirtualFileHandle(handle)) {
+    const text = await handle.file.text();
+    return { file: handle.file, text };
+  }
   const file = await handle.getFile();
   const text = await file.text();
   return { file, text };
@@ -70,8 +80,13 @@ async function verifyWritePermission(fileHandle) {
 
 // Writes `contents` to `fileHandle`, overwriting it. Permission is checked as
 // the very first step (before any other await) to stay inside the calling
-// user gesture's transient-activation window.
+// user gesture's transient-activation window. Virtual file handles (compat
+// mode) can't be written back, so saving downloads a copy instead.
 export async function saveFile(fileHandle, contents) {
+  if (isVirtualFileHandle(fileHandle)) {
+    downloadFile(fileHandle.name, contents);
+    return;
+  }
   const granted = await verifyWritePermission(fileHandle);
   if (!granted) {
     throw new Error('Write permission was not granted for this file.');
@@ -106,8 +121,12 @@ const SKIP_NAMES = new Set(['node_modules', '.git']);
 
 // Reads exactly one level of a directory (no recursion, to stay fast on huge
 // folders). Folders are always included for navigation; files are filtered to
-// markdown extensions. Sorted folders-first, then alphabetically.
+// markdown extensions. Sorted folders-first, then alphabetically. Accepts
+// virtual directory handles from compatibility mode.
 export async function listDirectoryShallow(dirHandle) {
+  if (isVirtualDirHandle(dirHandle)) {
+    return listVirtualDirectory(dirHandle);
+  }
   const folders = [];
   const files = [];
   for await (const [name, handle] of dirHandle.entries()) {
@@ -116,6 +135,24 @@ export async function listDirectoryShallow(dirHandle) {
       folders.push({ type: 'folder', name, handle });
     } else if (/\.(md|markdown)$/i.test(name)) {
       files.push({ type: 'file', name, handle });
+    }
+  }
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  folders.sort(byName);
+  files.sort(byName);
+  return [...folders, ...files];
+}
+
+// Lists one level of a virtual directory (compatibility mode). Children were
+// already filtered to markdown files when the tree was built.
+function listVirtualDirectory(node) {
+  const folders = [];
+  const files = [];
+  for (const child of node.children.values()) {
+    if (isVirtualDirHandle(child)) {
+      folders.push({ type: 'folder', name: child.name, handle: child });
+    } else {
+      files.push({ type: 'file', name: child.name, handle: child });
     }
   }
   const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });

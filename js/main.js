@@ -15,6 +15,10 @@ import { renderRecentFolders } from './recentFolders.js';
 import { initTheme } from './theme.js';
 import { initSidebar } from './sidebar.js';
 import { renderMermaidDiagrams } from './mermaid.js';
+import {
+  isVirtualHandle, isVirtualFileHandle,
+  pickFallbackFile, pickFallbackDirectory, supportsDirectoryInput,
+} from './fallbackFs.js';
 
 const unsupportedBanner = document.getElementById('unsupported-banner');
 const btnOpenFile = document.getElementById('btn-open-file');
@@ -51,6 +55,9 @@ const state = {
   splitEnabled: false,
   confirmedOverwriteHandles: new Set(),
   activeRecentFolderId: null,
+  // True when the File System Access API is unavailable (Firefox, Safari):
+  // files open read-only from disk and Save downloads a copy.
+  compatMode: false,
 };
 
 let editorApi = null;
@@ -126,7 +133,7 @@ function setCurrentFile(handle, text, { path, isFromTree }) {
 async function handleOpenFile() {
   if (!(await confirmDiscardIfDirty())) return;
   try {
-    const result = await pickAndOpenFile();
+    const result = state.compatMode ? await pickFallbackFile() : await pickAndOpenFile();
     if (!result) return;
     clearActiveFile();
     setCurrentFile(result.handle, result.text, { path: null, isFromTree: false });
@@ -205,6 +212,8 @@ async function renderTree() {
   try {
     await renderFileTree(fileTreeEl, state.rootDirHandle, {
       onBeforeNavigate: confirmDiscardIfDirty,
+      // Compat mode has no write-back: hide the new-file and copy buttons.
+      readOnly: state.compatMode,
       onFileClick: async (handle, { path, isFromTree }) => {
         try {
           const { text } = await readFile(handle);
@@ -236,13 +245,29 @@ async function openRootFolder(dirHandle) {
   btnReconnect.classList.add('hidden');
   btnRefreshTree.classList.remove('hidden');
   await renderTree();
-  await saveDirectoryHandle(dirHandle);
-  state.activeRecentFolderId = await addRecentFolder(dirHandle);
-  await refreshRecentFolders();
+  // Virtual folder handles can't be persisted (and need no permission
+  // re-grant), so skip the recent-folders bookkeeping in compat mode.
+  if (!isVirtualHandle(dirHandle)) {
+    await saveDirectoryHandle(dirHandle);
+    state.activeRecentFolderId = await addRecentFolder(dirHandle);
+    await refreshRecentFolders();
+  }
 }
 
 async function handleOpenFolder() {
   try {
+    if (state.compatMode) {
+      // No File System Access API: build an in-memory tree from a
+      // webkitdirectory picker. Files open read-only; Save downloads a copy.
+      if (!supportsDirectoryInput()) {
+        showToast('This browser cannot pick folders. Use "Open File" to open a single file instead.', true);
+        return;
+      }
+      const root = await pickFallbackDirectory();
+      if (!root) return;
+      await openRootFolder(root);
+      return;
+    }
     const dirHandle = await pickDirectory();
     if (!dirHandle) return;
     await openRootFolder(dirHandle);
@@ -322,7 +347,10 @@ function handleToggleSplit() {
 async function handleSaveClick() {
   if (!state.currentFileHandle) return;
   const handle = state.currentFileHandle;
-  if (!state.confirmedOverwriteHandles.has(handle)) {
+  // Compat mode: nothing is overwritten, so no confirmation is needed —
+  // saveFile() downloads a copy for virtual handles.
+  const isVirtual = isVirtualFileHandle(handle);
+  if (!isVirtual && !state.confirmedOverwriteHandles.has(handle)) {
     const confirmed = window.confirm(
       `Save changes to "${state.currentFileName}"? This will overwrite the original file.`,
     );
@@ -332,7 +360,7 @@ async function handleSaveClick() {
   try {
     await saveFile(handle, editorApi.getValue());
     editorApi.markSaved();
-    showToast(`Saved "${state.currentFileName}".`);
+    showToast(isVirtual ? `Downloaded "${state.currentFileName}".` : `Saved "${state.currentFileName}".`);
   } catch (err) {
     showToast(`Could not save file: ${err.message}`, true);
   }
@@ -389,8 +417,12 @@ function ensureEditableMode() {
 
 async function init() {
   if (!isFileSystemAccessSupported()) {
+    // Compatibility mode: the app still works, but files open read-only
+    // from disk and Save downloads a copy instead of writing back.
+    state.compatMode = true;
     unsupportedBanner.classList.remove('hidden');
-    return;
+    document.getElementById('recent-folders-panel').classList.add('hidden');
+    btnSave.title = 'Download a copy (Ctrl/Cmd+S)';
   }
 
   initTheme(btnToggleTheme);
@@ -422,8 +454,11 @@ async function init() {
   setupBeforeUnload();
   updateModeClasses();
 
-  await refreshRecentFolders();
-  await tryRestorePersistedFolder();
+  // No persisted folder handles or permission re-grants in compat mode.
+  if (!state.compatMode) {
+    await refreshRecentFolders();
+    await tryRestorePersistedFolder();
+  }
 }
 
 init();
