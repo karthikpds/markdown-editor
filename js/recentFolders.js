@@ -17,7 +17,11 @@ export function renderRecentFolders(containerEl, records, { activeId, onOpen, on
 
     const btn = document.createElement('button');
     btn.className = `recent-folder${record.id === activeId ? ' active' : ''}`;
-    btn.innerHTML = `<span class="tree-icon">📁</span> ${record.name}`;
+    // Folder names come from disk; use a text node, never innerHTML.
+    const icon = document.createElement('span');
+    icon.className = 'tree-icon';
+    icon.textContent = '📁';
+    btn.append(icon, ` ${record.name}`);
     btn.title = `${record.name} — last opened ${new Date(record.lastOpened).toLocaleString()}`;
     btn.addEventListener('click', () => onOpen(record));
 

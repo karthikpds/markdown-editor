@@ -243,7 +243,9 @@ async function openRootFolder(dirHandle) {
   state.rootDirHandle = dirHandle;
   state.rootDirName = dirHandle.name;
   btnReconnect.classList.add('hidden');
-  btnRefreshTree.classList.remove('hidden');
+  // Compat-mode trees are an in-memory snapshot of the picked folder, so a
+  // refresh would just re-render the same data; keep the button hidden.
+  btnRefreshTree.classList.toggle('hidden', state.compatMode);
   await renderTree();
   // Virtual folder handles can't be persisted (and need no permission
   // re-grant), so skip the recent-folders bookkeeping in compat mode.

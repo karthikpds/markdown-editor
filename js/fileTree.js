@@ -14,6 +14,15 @@ function markActive(btn) {
   activeFileButton = btn;
 }
 
+// File and folder names come straight from disk and may contain "<", "&", etc.,
+// so labels are built from DOM nodes (names as text nodes), never innerHTML.
+function span(className, text) {
+  const el = document.createElement('span');
+  el.className = className;
+  el.textContent = text;
+  return el;
+}
+
 // Inserts (or, for a same-name overwrite, replaces) a file row in sorted
 // order, after all folder rows. Also clears the "(empty)" placeholder.
 function insertFileNode(containerEl, newRow) {
@@ -45,7 +54,7 @@ function makeFolderNode(entry, depth, opts) {
   const btn = document.createElement('button');
   btn.className = 'tree-folder';
   btn.style.paddingLeft = `${6 + depth * 14}px`;
-  btn.innerHTML = `<span class="chevron">▸</span><span class="tree-icon">📁</span> ${entry.name}`;
+  btn.append(span('chevron', '▸'), span('tree-icon', '📁'), ` ${entry.name}`);
 
   headerRow.appendChild(btn);
 
@@ -117,7 +126,7 @@ function makeFileNode(entry, depth, opts, containerEl, parentDirHandle) {
   const btn = document.createElement('button');
   btn.className = 'tree-file';
   btn.style.paddingLeft = `${6 + depth * 14}px`;
-  btn.innerHTML = `<span class="tree-icon">📄</span> ${entry.name}`;
+  btn.append(span('tree-icon', '📄'), ` ${entry.name}`);
   btn.dataset.path = entry.path;
 
   btn.addEventListener('click', async () => {

@@ -35,8 +35,10 @@ Then open `http://localhost:8000` in Chrome or Edge. (Opening `index.html` direc
 
 ## Tech
 
-No framework, no bundler, no build step — and no runtime CDN dependencies. [marked](https://marked.js.org/) (markdown parsing) and [DOMPurify](https://github.com/cure53/DOMPurify) (sanitizing rendered HTML, since markdown files can embed raw HTML) are vendored under `vendor/`, so the app works fully offline. Mermaid (diagram rendering, ~3.5MB) is the only network dependency and loads lazily from a CDN only when a document actually contains a mermaid code block.
+No framework, no bundler, no build step — and no required CDN dependencies. [marked](https://marked.js.org/) (markdown parsing) and [DOMPurify](https://github.com/cure53/DOMPurify) (sanitizing rendered HTML, since markdown files can embed raw HTML) are vendored under `vendor/`, so the app works fully offline. Mermaid (diagram rendering, ~3.5MB) is the only network dependency and loads lazily from a CDN only when a document actually contains a mermaid code block.
 
 ## Security note
 
 Rendered markdown is always passed through DOMPurify before being inserted into the DOM, since a `.md` file can contain arbitrary HTML (including `<script>` tags) that `marked` would otherwise pass through unmodified.
+
+File and folder names (in the file tree and Recent Folders list) are also untrusted, since they come straight from disk and can contain characters like `<` and `&`. They are inserted as text nodes, never parsed as HTML.

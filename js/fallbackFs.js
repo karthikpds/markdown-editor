@@ -40,8 +40,12 @@ function makeFileInput(directory) {
 }
 
 // Opens the native picker and resolves with the chosen FileList, or null if
-// the user cancelled. The 'cancel' event covers Chromium/Safari; the focus
-// fallback covers browsers that fire neither 'change' nor 'cancel'.
+// the user cancelled (the 'cancel' event: Firefox 91+, Safari 16.4+). There is
+// deliberately no window-focus fallback for older browsers: a directory pick
+// populates `input.files` asynchronously, so guessing "cancelled" from an
+// empty list shortly after focus would wrongly drop large folder selections.
+// On a browser without 'cancel' the promise just stays pending, which is
+// harmless since nothing awaits it while holding a lock.
 function pickFiles(directory) {
   return new Promise((resolve) => {
     const input = makeFileInput(directory);
@@ -49,20 +53,11 @@ function pickFiles(directory) {
     const finish = (files) => {
       if (done) return;
       done = true;
-      window.removeEventListener('focus', onFocus);
       input.remove();
       resolve(files);
     };
-    const onFocus = () => {
-      // The picker dialog just closed: if 'change' didn't fire, the user
-      // cancelled. The timeout lets a pending 'change' event win the race.
-      setTimeout(() => {
-        if (!input.files || input.files.length === 0) finish(null);
-      }, 300);
-    };
     input.addEventListener('change', () => finish(input.files));
     input.addEventListener('cancel', () => finish(null));
-    window.addEventListener('focus', onFocus);
     document.body.appendChild(input);
     input.click();
   });
@@ -75,20 +70,19 @@ export function supportsDirectoryInput() {
 // Builds a virtual directory tree from the FileList of a webkitdirectory
 // input. Each File carries webkitRelativePath like "notes/projects/a.md".
 // Dot-folders/files and node_modules/.git are skipped, mirroring
-// listDirectoryShallow in fileSystem.js. Returns the virtual dir handle for
-// the top folder, or null when nothing usable was picked.
+// listDirectoryShallow in fileSystem.js (the picked folder's own name is never
+// filtered, so a folder like ".notes" still opens). Returns the virtual dir
+// handle for the top folder, or null when the selection was empty.
 export function buildVirtualTree(fileList) {
-  const files = Array.from(fileList || []).filter((f) => {
-    const rel = f.webkitRelativePath || f.name;
-    const parts = rel.split('/');
-    if (parts.some((p) => p.startsWith('.'))) return false;
-    if (parts.includes('node_modules') || parts.includes('.git')) return false;
-    return true;
-  });
-  if (files.length === 0) return null;
+  const all = Array.from(fileList || []);
+  if (all.length === 0) return null;
 
   const rootName =
-    (files[0].webkitRelativePath || files[0].name).split('/')[0] || 'folder';
+    (all[0].webkitRelativePath || all[0].name).split('/')[0] || 'folder';
+  const files = all.filter((f) => {
+    const below = (f.webkitRelativePath || f.name).split('/').slice(1);
+    return !below.some((p) => p.startsWith('.') || p === 'node_modules');
+  });
   const root = {
     __virtual: VIRTUAL_DIR,
     kind: 'directory',
