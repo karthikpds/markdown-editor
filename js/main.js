@@ -61,6 +61,7 @@ const state = {
 };
 
 let editorApi = null;
+let searchApi = null;
 
 function showToast(message, isError = false) {
   const el = document.createElement('div');
@@ -92,11 +93,14 @@ function updateModeClasses() {
     formatToolbarEl.classList.remove('hidden');
   }
   updateHeaderButtons();
+  searchApi?.refresh();
 }
 
 function refreshPreviewAndToc(text) {
   previewContentEl.innerHTML = renderMarkdown(text);
-  renderMermaidDiagrams(previewContentEl);
+  searchApi?.refresh();
+  // Mermaid swaps code blocks for SVGs after the fact, so re-sync once done.
+  renderMermaidDiagrams(previewContentEl).then(() => searchApi?.refresh());
   const headings = extractHeadings(text);
   renderToc(tocContainerEl, headings, {
     onHeadingClick: (slug) => {
@@ -409,14 +413,6 @@ function setupBeforeUnload() {
   });
 }
 
-function ensureEditableMode() {
-  if (!state.currentFileHandle) return;
-  if (state.mode === 'view') {
-    state.mode = 'edit';
-    updateModeClasses();
-  }
-}
-
 async function init() {
   if (!isFileSystemAccessSupported()) {
     // Compatibility mode: the app still works, but files open read-only
@@ -436,9 +432,11 @@ async function init() {
   });
   editorApi = initEditor(editorTextarea, { onChange: refreshPreviewAndToc, onDirtyChange });
   buildToolbar(formatToolbarEl, editorTextarea);
-  initSearch({
+  searchApi = initSearch({
     overlayEl: document.getElementById('search-overlay'),
     textareaEl: editorTextarea,
+    previewEl: previewContentEl,
+    previewPaneEl: document.getElementById('preview-pane'),
     findInputEl: document.getElementById('search-find'),
     replaceInputEl: document.getElementById('search-replace'),
     matchLabelEl: document.getElementById('search-match-label'),
@@ -447,7 +445,7 @@ async function init() {
     replaceOneBtn: document.getElementById('search-replace-one'),
     replaceAllBtn: document.getElementById('search-replace-all'),
     closeBtn: document.getElementById('search-close'),
-    ensureEditableMode,
+    isViewMode: () => state.mode === 'view',
     showToast,
   });
 

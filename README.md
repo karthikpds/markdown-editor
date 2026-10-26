@@ -19,7 +19,7 @@ Other browsers (Firefox, Safari) run in **compatibility mode**: you can still op
 - The last folder you opened is remembered (via IndexedDB); reopen the app and click **Reconnect to Folder** to regain access (the browser requires a fresh permission grant each session).
 - **Split View** — live side-by-side markdown source and rendered preview while editing.
 - Collapsible **Outline** pane generated from the document's headings; click a heading to jump to it.
-- **Ctrl/Cmd+F** opens an in-app find & replace overlay scoped to the open file (not the browser's native find).
+- **Ctrl/Cmd+F** opens an in-app find overlay scoped to the open file (not the browser's native find). In view mode it searches the rendered document without leaving view mode; while editing it also offers replace.
 - A formatting toolbar (bold, italic, strikethrough, headings, link, code, code block, blockquote, lists, horizontal rule) while editing.
 - Keyboard shortcuts: **Ctrl/Cmd+S** to save, **Ctrl/Cmd+E** to toggle edit/view mode.
 

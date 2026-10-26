@@ -426,12 +426,16 @@ button[aria-pressed="true"] { background: var(--accent-color); color: #fff; bord
   color: var(--text-primary);
   width: 160px;
 }
+#search-overlay.find-only .replace-row { display: none; }
 #search-match-label {
   font-size: 0.78rem;
   color: var(--text-secondary);
   min-width: 40px;
   text-align: center;
 }
+/* Find matches in the rendered preview (CSS Custom Highlight API). */
+::highlight(search-match) { background-color: rgba(250, 204, 21, 0.45); }
+::highlight(search-active) { background-color: #f59e0b; color: #1a1d21; }
 
 /* Toasts */
 #toast-container {
